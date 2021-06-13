@@ -9,7 +9,7 @@ import java.util.HashMap;
 
 public class Booking {
     @JsonIgnore
-    private Long id;
+    private int id;
     private User user;
     private UserDetail detail;
     private Vehicle vehicle;
@@ -19,6 +19,10 @@ public class Booking {
     private HashMap<String, Double> extraCost;
     private double cost;
     private String status;
+
+    public Booking(){
+        super();   // default cnstructor
+    }
 
     public Booking(User user, UserDetail detail, Vehicle vehicle, String serviceType, HashMap<String, Double> extraCost, LocalDate date, String comment) {
         this.user = user;
@@ -111,12 +115,12 @@ public class Booking {
         this.cost = cost;
     }
 
-    public Long getId() {
+    public int getId() {
         return id;
     }
 
 
-    public void setId(Long id) {
+    public void setId(int id) {
         this.id = id;
     }
 

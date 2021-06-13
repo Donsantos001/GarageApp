@@ -231,7 +231,7 @@ public class FirstController {
 
 				//add booking only if number of bookings is less than available workers capacity
 				if(noOfBooking < workers.size()*WORKER_CAPACITY){
-					booking.setId(Long.valueOf(bookings.size()+1));
+					booking.setId(bookings.size()+1);
 					bookings.add(booking);
 					return "Booking created successfully";
 				}
@@ -309,10 +309,18 @@ public class FirstController {
 	@PostMapping("/admin/bookings/staff")
 	public String assignStaff(
 			@RequestHeader(name = "Authorization", required = true) String token,
-			@RequestBody(required = true) String staff,
-			@RequestBody(required = true) Booking booking){
+			@RequestParam(name = "staff", required = true) String staff,
+			@RequestParam(name = "id", required = true) Integer id){
 
 		ArrayList<Booking> bookingForDay = new ArrayList<>();
+
+		Booking booking = new Booking();
+
+		for(Booking bk : bookings){
+			if(bk.getId() == id){
+				booking = bk;
+			}
+		}
 
 		for(Staff st : workers){
 			if(st.getName().equalsIgnoreCase(staff)){
@@ -340,10 +348,10 @@ public class FirstController {
 	public String addCostToBooking(
 			@RequestHeader(name = "Authorization", required = true) String token,
 			@RequestParam(name = "part", required = true) String part,
-			@RequestBody(required = true) Booking booking){
+			@RequestParam(name = "id", required = true) Integer id){
 
 		for(Booking bk : bookings){
-			if(bk == booking){
+			if(bk.getId() == id){
 				bk.addExtraCost(part, partsList.get(part)); // just a temporary value
 			}
 		}
@@ -356,12 +364,12 @@ public class FirstController {
 	@PostMapping("/admin/bookings/update/{status}")
 	public String updateStatus(
 			@RequestHeader(name = "Authorization", required = true) String token,
-			@RequestParam(name = "part", required = true) String part,
-			@RequestBody(required = true) Booking booking){
+			@PathVariable(name = "status", required = true) String status,
+			@RequestParam(name = "id", required = true) Integer id){
 
 		for(Booking bk : bookings){
-			if(bk == booking){
-				bk.addExtraCost(part, partsList.get(part)); // just a temporary value
+			if(bk.getId() == id){
+				bk.setStatus(status); // just a temporary value
 			}
 		}
 
@@ -371,11 +379,11 @@ public class FirstController {
 
 
 
-	//ASSIGN TASK FOR A STAFF
+	//PRINT INVOICE FOR USER
 
-	@PostMapping("/admin/bookings/{user}")
+	@GetMapping("/admin/bookings/invoice")
 	public String printInvoice(
-			@PathVariable(name = "username") String username,
+			@RequestParam(name = "username", required = true) String username,
 			@RequestHeader(name = "Authorization", required = true) String token //admin authorization
 			){
 
@@ -411,7 +419,15 @@ public class FirstController {
 	}
 
 
+	//GET BOOKINGS PER USER
 
+	@GetMapping("/admin/bookings/{user}")
+	public ArrayList<Booking> getBookingsPerUser(
+			@RequestHeader(name = "Authorization", required = true) String token,
+			@PathVariable(name = "user") String username){
+
+		return bookingsPerUser(username);
+	}
 
 
 
