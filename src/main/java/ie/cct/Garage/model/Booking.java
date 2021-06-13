@@ -1,7 +1,6 @@
 package ie.cct.Garage.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.databind.annotation.JsonAppend;
 
 import java.time.LocalDate;
 import java.util.Date;
@@ -21,7 +20,7 @@ public class Booking {
     private String status;
 
     public Booking(){
-        super();   // default cnstructor
+        super();   // default constructor
     }
 
     public Booking(User user, UserDetail detail, Vehicle vehicle, String serviceType, HashMap<String, Double> extraCost, LocalDate date, String comment) {
@@ -42,11 +41,11 @@ public class Booking {
         this.user = user;
     }
 
-    public UserDetail getUserDetail() {
+    public UserDetail getDetail() {
         return detail;
     }
 
-    public void setUserDetail(UserDetail detail) {
+    public void setDetail(UserDetail detail) {
         this.detail = detail;
     }
 

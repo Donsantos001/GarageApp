@@ -2,6 +2,7 @@ package ie.cct.Garage.controller;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.Year;
 import java.time.ZoneId;
 import java.util.*;
 
@@ -28,34 +29,46 @@ import io.jsonwebtoken.Claims;
 @RestController
 @CrossOrigin("*")
 public class FirstController {
-// properties	
+	// properties
+
+	//maximum service for a staff per day
+	final int WORKER_CAPACITY = 4;
+
 	// List of Users
 	private List<User> users;
-
-	final int WORKER_CAPACITY = 4;
 	
 	// List of staff
 	private List<Staff> workers;
 	
-	// key - parts, value- prices>
+	// <key - parts, value - prices>
 	private Map<String, Double> partsList;
+
+	// <key - services, value - price>
+	private Map<String, Double> servicesList;
 
 	private List<Booking> bookings;
 
 	//constructor
 	public FirstController() {
-			
 		users = new ArrayList<>();
 		workers = new ArrayList<>();
 		partsList = new HashMap<>();
+		servicesList = new HashMap<>();
 		bookings = new ArrayList<>();
 
-		//just a temporary value
+		//just temporary values
 		workers.add(new Staff("Santyy", new ArrayList<Booking>()));
 		partsList.put("Tyre", 232.0);
 		partsList.put("Mirror", 282.0);
 		partsList.put("Glass", 322.0);
+		servicesList.put("Annual Service", 230.90);
+		servicesList.put("Major Service", 330.50);
+		servicesList.put("Repair", 190.90);
+		servicesList.put("Major Repair", 200.0);
 	}
+
+
+
 
 	//REGISTER USER
 
@@ -115,18 +128,6 @@ public class FirstController {
 
 
 
-
-	//LIST USER
-
-
-	// print the list of users
-	@GetMapping("/users")
-	public List<User> getUsers() {
-		return users;
-	}
-
-
-
 	//LOGIN USER
 
 
@@ -153,11 +154,22 @@ public class FirstController {
 
 
 
+
+
+
+
+	//LIST ALL USER
+
+
 	// print the list of users
-	@GetMapping("/staff")
-	public List<Staff> getStaffs() {
-		return workers;
+	@GetMapping("/users")
+	public List<User> getUsers() {
+		return users;
 	}
+
+
+
+
 
 
 
@@ -169,7 +181,7 @@ public class FirstController {
 	@ResponseStatus(code = HttpStatus.OK) // response 200 instead
 	public String registerStaff(
 			// if i don't specify the name, it will take the name of the variable
-			@RequestBody(required = true) String name) {
+			@RequestParam(name = "name", required = true) String name) {
 		
 		if (staffExist(name)) {
 			throw new BadRequestException("worker already exist");
@@ -178,7 +190,6 @@ public class FirstController {
 	
 		return "worker created successfully";
 	}
-
 
 	// check if the name is stored in the array Staff.
 	private boolean staffExist(String name) {
@@ -191,6 +202,21 @@ public class FirstController {
 		// if the worker is not registered it will return false.
 		return false;
 	}
+
+
+
+
+	// GET ALL STAFFS
+
+	@GetMapping("/staff")
+	public List<Staff> getStaffs() {
+		return workers;
+	}
+
+
+
+
+
 
 	
 
@@ -208,6 +234,7 @@ public class FirstController {
 		// subClaim contains the subject, this is one of the four values that contains the token
 		// The "sub" is equal to user name.
 		String subClaim = claims.get("sub", String.class);
+
 
 		// foreach to go through to the array
 		for (User u : users) {
@@ -231,9 +258,15 @@ public class FirstController {
 
 				//add booking only if number of bookings is less than available workers capacity
 				if(noOfBooking < workers.size()*WORKER_CAPACITY){
-					booking.setId(bookings.size()+1);
-					bookings.add(booking);
-					return "Booking created successfully";
+					if(servicesList.get(booking.getServiceType()) != null){
+						booking.setId(bookings.size()+1);
+						booking.setCost(servicesList.get(booking.getServiceType()));
+						bookings.add(booking);
+						return "Booking created successfully";
+					}
+					else {
+						throw new BadRequestException("Service doesn't exist");
+					}
 				}
 				else {
 					throw new BadRequestException("Bookings has reached limit for this day");
@@ -245,6 +278,19 @@ public class FirstController {
 
 		throw new UnauthorizedException("user not registered");
 	}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	//GET BOOKINGS FOR A DAY
 
@@ -264,34 +310,68 @@ public class FirstController {
 		return bookingForDay;
 	}
 
+	public int countBookingsByDay(LocalDate date, ArrayList<Booking> booking){
+		int count = 0;
+
+		for(Booking bk : booking){
+			if(bk.getDate() == date){
+				count++;
+			}
+		}
+		return count;
+	}
+
+
+
+
 	//GET BOOKINGS FOR A WEEK
 
 
 	@GetMapping("/admin/bookings/week")
 	public ArrayList<Booking> getBookingsForWeek(
 			@RequestParam(name = "week", required = true) Integer week,
+			@RequestParam(name = "year", required = true) Integer year,
 			@RequestHeader(name = "Authorization", required = true) String token){
 
+		//check if year or week is valid
+		if(year > LocalDate.now().getYear() || week > 52){
+			throw new BadRequestException("Invalid Year or Week");
+		}
+
+
 		ArrayList<Booking> bookingForDay = new ArrayList<>();
-		HashMap<Integer, LocalDate> datesOfWeek = new HashMap<>();
+		ArrayList<LocalDate> datesOfWeek = new ArrayList<>();
 
 		Calendar calendar = Calendar.getInstance();
 
 		for(int i = Calendar.SUNDAY; i  <= Calendar.SATURDAY; i++){
-			calendar.setWeekDate(LocalDate.now().getYear(), week, i);
-			datesOfWeek.put(i, calendar.getTime().toInstant()
+			calendar.setWeekDate(year, week, i);
+			datesOfWeek.add(calendar.getTime().toInstant()
 								.atZone(ZoneId.systemDefault())
 								.toLocalDate());
 		}
 
+
+		//add booking is date is among the week days
 		for(Booking bk : bookings){
-			if(datesOfWeek.values().contains(bk.getDate())){
+			if(datesOfWeek.contains(bk.getDate())){
 				bookingForDay.add(bk);
 			}
 		}
 
 		return bookingForDay;
 	}
+
+
+
+
+
+
+
+
+
+
+
 
 
 	//GET ALL BOOKINGS
@@ -304,17 +384,28 @@ public class FirstController {
 	}
 
 
+
+
+
+
+
+
+
+
+
+
+
 	//ASSIGN TASK FOR A STAFF
 
 	@PostMapping("/admin/bookings/staff")
-	public String assignStaff(
+	public String assignTask(
 			@RequestHeader(name = "Authorization", required = true) String token,
 			@RequestParam(name = "staff", required = true) String staff,
-			@RequestParam(name = "id", required = true) Integer id){
+			@RequestParam(name = "bookingid", required = true) Integer id){
 
 		ArrayList<Booking> bookingForDay = new ArrayList<>();
 
-		Booking booking = new Booking();
+		Booking booking = null;
 
 		for(Booking bk : bookings){
 			if(bk.getId() == id){
@@ -322,25 +413,48 @@ public class FirstController {
 			}
 		}
 
+		if(booking == null){
+			throw new BadRequestException("Booking doesn't exist");
+		}
+
 		for(Staff st : workers){
+			if(st.getTask().contains(booking)){
+				if(!st.getName().equalsIgnoreCase(staff)){
+					throw new BadRequestException("Task already assigned to another staff");
+				}
+			}
+
 			if(st.getName().equalsIgnoreCase(staff)){
 				ArrayList<Booking> bk = bookingsPerUser(staff);
 
-				int count = countBookingsByDay(booking.getDate(), bk);
+				if(!st.getTask().contains(booking)){
+					int count = countBookingsByDay(booking.getDate(), bk);
 
-				if(count < 4){
-					st.addTask(booking);
-					return "Task assigned successfully";
+					if(count < 4){
+						st.addTask(booking);
+						return "Task assigned successfully";
+					}
+					else {
+						throw new BadRequestException("staff service limit exceeded");
+					}
 				}
-				else {
-					throw new BadRequestException("staff service limit exceeded");
-				}
+
+				throw new BadRequestException("Task already assigned to this staff")
 			}
 		}
 
-		throw new BadRequestException("user doesn't exist");
+		throw new BadRequestException("Staff doesn't exist");
 
 	}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -348,34 +462,95 @@ public class FirstController {
 	public String addCostToBooking(
 			@RequestHeader(name = "Authorization", required = true) String token,
 			@RequestParam(name = "part", required = true) String part,
-			@RequestParam(name = "id", required = true) Integer id){
+			@RequestParam(name = "bookingid", required = true) Integer id){
 
 		for(Booking bk : bookings){
 			if(bk.getId() == id){
+				if(partsList.get(part) == null){
+					throw new BadRequestException("Parts doesn't exist, try adding a new part");
+				}
 				bk.addExtraCost(part, partsList.get(part)); // just a temporary value
+
+				return "Cost Added successfully";
 			}
 		}
 
-		throw new BadRequestException("user doesn't exist");
+		throw new BadRequestException("Booking doesn't exist");
 
 	}
 
+
+
+
+
+
+
+
+
+
+
+
+
+	//ADD A NEW VEHICLE PART WITH PRICE
+
+	@PostMapping("/admin/part/add")
+	public String addVehiclePart(
+			@RequestHeader(name = "Authorization", required = true) String token,
+			@RequestParam(name = "part", required = true) String part,
+			@RequestParam(name = "price", required = true) Double price){
+
+		if(partsList.get(part) == null){
+			partsList.put(part, price);
+			return "Part added successfully";
+		}
+
+		throw new BadRequestException("Part already exists");
+
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+	//UPDATE THE STATUS OF A BOOKING
 
 	@PostMapping("/admin/bookings/update/{status}")
 	public String updateStatus(
 			@RequestHeader(name = "Authorization", required = true) String token,
 			@PathVariable(name = "status", required = true) String status,
-			@RequestParam(name = "id", required = true) Integer id){
+			@RequestParam(name = "bookingid", required = true) Integer id){
 
 		for(Booking bk : bookings){
 			if(bk.getId() == id){
 				bk.setStatus(status); // just a temporary value
+				return "Status updated successfully";
 			}
 		}
 
-		throw new BadRequestException("user doesn't exist");
-
+		throw new BadRequestException("Booking doesn't exist");
 	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -398,9 +573,9 @@ public class FirstController {
 		String invoice = "";
 
 		for(Booking bk : completedBooking){
-			invoice += "Customer : " + bk.getUserDetail().getName();
-			invoice += "\nMobile No : " + bk.getUserDetail().getPhoneNumber();
-			invoice += "\nEmail : " + bk.getUserDetail().getEmail();
+			invoice += "Customer : " + bk.getDetail().getName();
+			invoice += "\nMobile No : " + bk.getDetail().getPhoneNumber();
+			invoice += "\nEmail : " + bk.getDetail().getEmail();
 			invoice += "\n\nVehicle : " + bk.getVehicle().getVehicleMake();
 			invoice += "\nLicence : " + bk.getVehicle().getVehicleLicense();
 			invoice += "\n" + bk.getServiceType() + " : €" + bk.getCost();
@@ -419,6 +594,20 @@ public class FirstController {
 	}
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	//GET BOOKINGS PER USER
 
 	@GetMapping("/admin/bookings/{user}")
@@ -428,13 +617,6 @@ public class FirstController {
 
 		return bookingsPerUser(username);
 	}
-
-
-
-
-
-
-
 
 	public ArrayList<Booking> bookingsPerUser(String user){
 		ArrayList<Booking> bks = new ArrayList<>();
@@ -448,14 +630,4 @@ public class FirstController {
 		return bks;
 	}
 
-	public int countBookingsByDay(LocalDate date, ArrayList<Booking> booking){
-		int count = 0;
-
-		for(Booking bk : booking){
-			if(bk.getDate() == date){
-				count++;
-			}
-		}
-		return count;
-	}
 }
