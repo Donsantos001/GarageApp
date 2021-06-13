@@ -1,10 +1,8 @@
 package ie.cct.Garage.controller;
 
-import java.awt.print.Book;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import ie.cct.Garage.model.*;
@@ -24,7 +22,6 @@ import ie.cct.Garage.exceptions.BadRequestException;
 import ie.cct.Garage.exceptions.UnauthorizedException;
 import ie.cct.Garage.util.JWTIssuer;
 import io.jsonwebtoken.Claims;
-import java.time.LocalDateTime;
 
 
 
@@ -40,8 +37,8 @@ public class FirstController {
 	// List of staff
 	private List<Staff> workers;
 	
-	// key - 4 main Services, value- ArrayList<vehicle> 
-	private Map<String, ArrayList<Vehicle>> VehicleList;
+	// key - parts, value- prices>
+	private Map<String, Double> partsList;
 
 	private List<Booking> bookings;
 
@@ -50,11 +47,14 @@ public class FirstController {
 			
 		users = new ArrayList<>();
 		workers = new ArrayList<>();
-		VehicleList = new HashMap<>();
+		partsList = new HashMap<>();
 		bookings = new ArrayList<>();
 
 		//just a temporary value
 		workers.add(new Staff("Santyy", new ArrayList<Booking>()));
+		partsList.put("Tyre", 232.0);
+		partsList.put("Mirror", 282.0);
+		partsList.put("Glass", 322.0);
 	}
 
 	//REGISTER USER
@@ -231,8 +231,8 @@ public class FirstController {
 
 				//add booking only if number of bookings is less than available workers capacity
 				if(noOfBooking < workers.size()*WORKER_CAPACITY){
+					booking.setId(Long.valueOf(bookings.size()+1));
 					bookings.add(booking);
-
 					return "Booking created successfully";
 				}
 				else {
@@ -304,26 +304,6 @@ public class FirstController {
 	}
 
 
-	//GET BOOKINGS FOR A DATE
-
-//	@GetMapping("/admin/bookings/day")
-//	public ArrayList<Booking> getBookingsForDate(
-//			@RequestParam("localdatetime") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime date,
-//			@RequestHeader(name = "Authorization", required = true) String token,
-//			@RequestBody(required = true) UserDetail detail){
-//
-//		ArrayList<Booking> bookingForDay = new ArrayList<>();
-//
-//		for(Booking bk : bookings){
-//			if(bk.getDate() == date){
-//				bookingForDay.add(bk);
-//			}
-//		}
-//
-//		return bookingForDay;
-//	}
-
-
 	//ASSIGN TASK FOR A STAFF
 
 	@PostMapping("/admin/bookings/staff")
@@ -359,12 +339,29 @@ public class FirstController {
 	@PostMapping("/admin/bookings/addcost")
 	public String addCostToBooking(
 			@RequestHeader(name = "Authorization", required = true) String token,
-			@RequestBody(required = true) String part,
+			@RequestParam(name = "part", required = true) String part,
 			@RequestBody(required = true) Booking booking){
 
 		for(Booking bk : bookings){
 			if(bk == booking){
-				bk.addCost(100); // just a temporary value
+				bk.addExtraCost(part, partsList.get(part)); // just a temporary value
+			}
+		}
+
+		throw new BadRequestException("user doesn't exist");
+
+	}
+
+
+	@PostMapping("/admin/bookings/update/{status}")
+	public String updateStatus(
+			@RequestHeader(name = "Authorization", required = true) String token,
+			@RequestParam(name = "part", required = true) String part,
+			@RequestBody(required = true) Booking booking){
+
+		for(Booking bk : bookings){
+			if(bk == booking){
+				bk.addExtraCost(part, partsList.get(part)); // just a temporary value
 			}
 		}
 
@@ -374,21 +371,44 @@ public class FirstController {
 
 
 
-	
-	@GetMapping("/date/v1")
-	public String dateTimeApiV1(
-			//@RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date date,
-			//@RequestParam("localdate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate localdate, 
-			@RequestParam("localdatetime") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime localdatetime) {
-		
-	//	System.out.println(date);
-	//	System.out.println(localdate);
-	//	System.out.println(localdatetime);
+	//ASSIGN TASK FOR A STAFF
 
-		
-		return "booked sucessfully for" + localdatetime; 
+	@PostMapping("/admin/bookings/{user}")
+	public String printInvoice(
+			@PathVariable(name = "username") String username,
+			@RequestHeader(name = "Authorization", required = true) String token //admin authorization
+			){
+
+		ArrayList<Booking> completedBooking = new ArrayList<>();
+
+		for(Booking bk : bookingsPerUser(username)){
+			if(bk.getStatus().equalsIgnoreCase("Completed")){
+				completedBooking.add(bk);
+			}
+		}
+
+		String invoice = "";
+
+		for(Booking bk : completedBooking){
+			invoice += "Customer : " + bk.getUserDetail().getName();
+			invoice += "\nMobile No : " + bk.getUserDetail().getPhoneNumber();
+			invoice += "\nEmail : " + bk.getUserDetail().getEmail();
+			invoice += "\n\nVehicle : " + bk.getVehicle().getVehicleMake();
+			invoice += "\nLicence : " + bk.getVehicle().getVehicleLicense();
+			invoice += "\n" + bk.getServiceType() + " : €" + bk.getCost();
+
+			int total = 0;
+			for(String part : bk.getExtraCost().keySet()){
+				invoice += "\n" + part + " : €" + bk.getExtraCost().get(part);
+				total += bk.getExtraCost().get(part);
+			}
+
+			invoice += "\nTOTAL DUE  : €" + (total + bk.getCost()) + "\n";
+		}
+
+		return invoice;
+
 	}
-
 
 
 

@@ -1,23 +1,31 @@
 package ie.cct.Garage.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonAppend;
+
 import java.time.LocalDate;
 import java.util.Date;
+import java.util.HashMap;
 
 public class Booking {
+    @JsonIgnore
+    private Long id;
     private User user;
     private UserDetail detail;
     private Vehicle vehicle;
     private String serviceType;
     private LocalDate date;
     private String comment;
+    private HashMap<String, Double> extraCost;
     private double cost;
     private String status;
 
-    public Booking(User user, UserDetail detail, Vehicle vehicle, String serviceType, LocalDate date, String comment) {
+    public Booking(User user, UserDetail detail, Vehicle vehicle, String serviceType, HashMap<String, Double> extraCost, LocalDate date, String comment) {
         this.user = user;
         this.detail = detail;
         this.vehicle = vehicle;
         this.serviceType = serviceType;
+        this.extraCost = extraCost;
         this.date = date;
         this.comment = comment;
     }
@@ -70,16 +78,21 @@ public class Booking {
         this.comment = comment;
     }
 
-    public double getCost() {
-        return cost;
+    public HashMap<String, Double> getExtraCost() {
+        return extraCost;
     }
 
-    public void setCost(double cost) {
-        this.cost = cost;
+    public void setExtraCost(String part,double cost) {
+        this.extraCost.put(part, cost);
     }
 
-    public void addCost(double cost){
-        this.cost += cost;
+    public void addExtraCost(String part, double cost){
+        if(this.extraCost.containsKey(part)){
+            extraCost.put(part, extraCost.get(part) + cost);
+        }
+        else {
+            extraCost.put(part, cost);
+        }
     }
 
     public String getStatus() {
@@ -89,4 +102,22 @@ public class Booking {
     public void setStatus(String status) {
         this.status = status;
     }
+
+    public double getCost() {
+        return cost;
+    }
+
+    public void setCost(double cost) {
+        this.cost = cost;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
 }
